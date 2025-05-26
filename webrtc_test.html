@@ -12,6 +12,11 @@
 <body>
     <h1>GStreamer WebRTC E2E Test</h1>
     <video id="video" autoplay playsinline controls></video>
+    <label for="restUrl">REST Server URL:</label>
+    <input type="text" id="restUrl" value="http://localhost:5000" size="30" />
+    <br><br>
+    <button id="startGstBtn">Start GStreamer Feed</button>
+    <button id="stopGstBtn">Stop GStreamer Feed</button>
     <button id="startBtn">Start WebRTC</button>
     <div id="log"></div>
     <script>
@@ -19,6 +24,31 @@
     const log = msg => {
         document.getElementById('log').textContent += msg + '\n';
         console.log(msg);
+    };
+    function getRestUrl(path) {
+        let url = document.getElementById('restUrl').value;
+        if (url.endsWith('/')) url = url.slice(0, -1);
+        return url + path;
+    }
+    document.getElementById('startGstBtn').onclick = async () => {
+        log('Requesting Flask backend to start GStreamer feed...');
+        try {
+            const resp = await fetch(getRestUrl('/start'), { method: 'POST' });
+            const data = await resp.json();
+            log('GStreamer start response: ' + JSON.stringify(data));
+        } catch (err) {
+            log('Error starting GStreamer: ' + err);
+        }
+    };
+    document.getElementById('stopGstBtn').onclick = async () => {
+        log('Requesting Flask backend to stop GStreamer feed...');
+        try {
+            const resp = await fetch(getRestUrl('/stop'), { method: 'POST' });
+            const data = await resp.json();
+            log('GStreamer stop response: ' + JSON.stringify(data));
+        } catch (err) {
+            log('Error stopping GStreamer: ' + err);
+        }
     };
     document.getElementById('startBtn').onclick = async () => {
         log('Starting WebRTC connection...');
@@ -34,7 +64,7 @@
                 // All ICE candidates gathered, send offer
                 const offer = pc.localDescription;
                 log('Sending offer to Flask backend...');
-                const resp = await fetch('/offer', {
+                const resp = await fetch(getRestUrl('/offer'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sdp: offer.sdp, type: offer.type })
