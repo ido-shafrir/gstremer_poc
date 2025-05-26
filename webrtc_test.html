@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GStreamer WebRTC E2E Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        video { width: 640px; height: 360px; background: #222; }
+        #log { white-space: pre; background: #eee; padding: 1em; margin-top: 1em; }
+    </style>
+</head>
+<body>
+    <h1>GStreamer WebRTC E2E Test</h1>
+    <video id="video" autoplay playsinline controls></video>
+    <button id="startBtn">Start WebRTC</button>
+    <div id="log"></div>
+    <script>
+    const video = document.getElementById('video');
+    const log = msg => {
+        document.getElementById('log').textContent += msg + '\n';
+        console.log(msg);
+    };
+    document.getElementById('startBtn').onclick = async () => {
+        log('Starting WebRTC connection...');
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        pc.ontrack = e => {
+            log('Received remote track');
+            video.srcObject = e.streams[0];
+        };
+        pc.onicecandidate = async e => {
+            if (e.candidate === null) {
+                // All ICE candidates gathered, send offer
+                const offer = pc.localDescription;
+                log('Sending offer to Flask backend...');
+                const resp = await fetch('/offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sdp: offer.sdp, type: offer.type })
+                });
+                const data = await resp.json();
+                log('Received answer from backend');
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+            }
+        };
+        // We want to receive video only
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+    };
+    </script>
+</body>
+</html>

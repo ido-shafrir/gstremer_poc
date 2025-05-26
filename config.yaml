@@ -1,0 +1,29 @@
+# Example configuration for gstreamer project
+
+feeds:
+  - name: cam1
+    url: rtsp://example.com/stream1
+  - name: cam2
+    url: rtsp://example.com/stream2
+  - name: cam3
+    url: rtsp://example.com/stream3
+  - name: cam4
+    url: rtsp://example.com/stream4
+  - name: cam5
+    url: rtsp://example.com/stream5
+  - name: cam6
+    url: rtsp://example.com/stream6
+
+# Initial composite layout (list of feed names to include)
+composite:
+  - cam1
+  - cam2
+  - cam3
+  - cam4
+  - cam5
+  - cam6
+
+# Output WebRTC settings
+webrtc:
+  port: 8443
+  stun_server: stun:stun.l.google.com:19302
