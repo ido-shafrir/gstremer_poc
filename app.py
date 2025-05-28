@@ -65,18 +65,17 @@ def build_pipeline(feeds, composite, webrtc):
         compositor_inputs.append(f"q{idx}.")
     
     # Layout: grid (auto for up to 6 feeds)
-    # For simplicity, place all at (0,0) (user can improve layout later)
     compositor = "compositor name=mix sink_0::xpos=0 sink_0::ypos=0 "
     for i in range(1, len(selected_urls)):
         xpos = (i % 3) * 640
         ypos = (i // 3) * 360
         compositor += f"sink_{i}::xpos={xpos} sink_{i}::ypos={ypos} "
-    compositor += "! videoconvert ! x264enc tune=zerolatency bitrate=2048 speed-preset=ultrafast ! rtph264pay ! queue ! webrtcbin bundle-policy=max-bundle name=sendrecv "
+    # Remove name=sendrecv from webrtcbin
+    compositor += "! videoconvert ! x264enc tune=zerolatency bitrate=2048 speed-preset=ultrafast ! rtph264pay ! queue ! webrtcbin bundle-policy=max-bundle "
     
     # WebRTC config (STUN server)
     stun = webrtc.get('stun_server', 'stun:stun.l.google.com:19302')
-    # Remove the invalid 'sendrecv.stun-server' reference
-    webrtc_signaling = f"webrtcbin stun-server={stun}"
+    webrtc_signaling = f"stun-server={stun}"
 
     # Connect all sources to compositor
     pipeline = " ".join(pipeline_parts)
