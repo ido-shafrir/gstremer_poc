@@ -70,8 +70,8 @@ def build_pipeline(feeds, composite, webrtc):
         xpos = (i % 3) * 640
         ypos = (i // 3) * 360
         compositor += f"sink_{i}::xpos={xpos} sink_{i}::ypos={ypos} "
-    # Remove name=sendrecv from webrtcbin
-    compositor += "! videoconvert ! x264enc tune=zerolatency bitrate=2048 speed-preset=ultrafast ! rtph264pay ! queue ! webrtcbin bundle-policy=max-bundle "
+    # Fix: link to webrtcbin's send_rtp_sink_0 pad with correct caps
+    compositor += "! videoconvert ! x264enc tune=zerolatency bitrate=2048 speed-preset=ultrafast ! rtph264pay ! queue ! application/x-rtp,media=video,encoding-name=H264,payload=96 ! webrtcbin. send_rtp_sink_0 bundle-policy=max-bundle "
     
     # WebRTC config (STUN server)
     stun = webrtc.get('stun_server', 'stun:stun.l.google.com:19302')
