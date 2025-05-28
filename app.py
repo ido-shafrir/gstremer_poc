@@ -12,6 +12,7 @@ app = Flask(__name__)
 CONFIG_PATH = os.environ.get('GST_CONFIG', 'config.yaml')
 GST_PROCESS = None
 GST_LOCK = threading.Lock()
+GST_MONITOR_THREAD = None
 
 # Configure logging
 logger = logging.getLogger()
@@ -74,17 +75,36 @@ def build_pipeline(feeds, composite, webrtc):
     
     # WebRTC config (STUN server)
     stun = webrtc.get('stun_server', 'stun:stun.l.google.com:19302')
-    webrtc_signaling = f"sendrecv.stun-server={stun}"
-    
+    # Remove the invalid 'sendrecv.stun-server' reference
+    webrtc_signaling = f"webrtcbin stun-server={stun}"
+
     # Connect all sources to compositor
     pipeline = " ".join(pipeline_parts)
     pipeline += f" {compositor} {webrtc_signaling}"
     logging.info(f"Generated GStreamer pipeline: {pipeline}")
     return pipeline
 
+# Monitor GStreamer process in a separate thread
+def monitor_gst_process():
+    global GST_PROCESS
+    if GST_PROCESS is None:
+        return
+    try:
+        stdout, stderr = GST_PROCESS.communicate()
+        logger.info(f"GStreamer process ended with return code {GST_PROCESS.returncode}")
+        if stdout:
+            logger.info(f"GStreamer stdout: {stdout}")
+        if stderr:
+            logger.info(f"GStreamer stderr: {stderr}")
+    except Exception as e:
+        logger.error(f"Error monitoring GStreamer process: {e}")
+        logger.debug(traceback.format_exc())
+    finally:
+        GST_PROCESS = None
+
 # Start GStreamer process
 def start_gst(feeds, composite, webrtc):
-    global GST_PROCESS
+    global GST_PROCESS, GST_MONITOR_THREAD
     try:
         pipeline = build_pipeline(feeds, composite, webrtc)
     except Exception as e:
@@ -96,11 +116,13 @@ def start_gst(feeds, composite, webrtc):
             logging.warning("GStreamer process is already running.")
             return False
         try:
-            # Prefix with gst-launch-1.0 and quote the pipeline for shell
             cmd = f"gst-launch-1.0 {pipeline}"
             logging.info(f"Running command: {cmd}")
-            GST_PROCESS = subprocess.Popen(cmd, shell=True)
+            GST_PROCESS = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             logging.info("Started GStreamer process.")
+            # Start monitor thread
+            GST_MONITOR_THREAD = threading.Thread(target=monitor_gst_process, daemon=True)
+            GST_MONITOR_THREAD.start()
         except Exception as e:
             logging.error(f"Failed to start GStreamer process: {e}")
             logging.debug(traceback.format_exc())
