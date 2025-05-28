@@ -96,7 +96,10 @@ def start_gst(feeds, composite, webrtc):
             logging.warning("GStreamer process is already running.")
             return False
         try:
-            GST_PROCESS = subprocess.Popen(pipeline, shell=True)
+            # Prefix with gst-launch-1.0 and quote the pipeline for shell
+            cmd = f"gst-launch-1.0 {pipeline}"
+            logging.info(f"Running command: {cmd}")
+            GST_PROCESS = subprocess.Popen(cmd, shell=True)
             logging.info("Started GStreamer process.")
         except Exception as e:
             logging.error(f"Failed to start GStreamer process: {e}")
